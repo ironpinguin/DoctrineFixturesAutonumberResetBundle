@@ -1,13 +1,13 @@
 {
-    "name": "littlejon/doctrine-fixtures-autonumber-reset-bundle",
+    "name": "ironpinguin/doctrine-fixtures-autonumber-reset-bundle",
     "description": "Symfony2 Bundle to automatically reset the AUTO_INCREMENT value to 1 when using MySQL and foreign key contraints and Doctrine Data Fixtrues",
+    "keywords": ["Persistence", "Fixture"],
     "license": "MIT",
     "require": {
-        "php": ">=5.3.3",
-        "doctrine/doctrine-fixtures-bundle": "dev-master"
+        "php": ">=5.5.9|^7.0",
+        "doctrine/doctrine-fixtures-bundle": ">=3.0"
     },
     "autoload": {
-        "psr-0": { "Littlejon\\DoctrineFixturesAutonumberResetBundle": "" }
-    },
-    "target-dir": "Littlejon/DoctrineFixturesAutonumberResetBundle"
+        "psr-4": { "Ironpinguin\\Bundle\\DoctrineFixturesAutonumberResetBundle\\": "" }
+    }
 }

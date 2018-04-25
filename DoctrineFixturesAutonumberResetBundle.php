@@ -1,6 +1,6 @@
 <?php
 
-namespace Littlejon\DoctrineFixturesAutonumberResetBundle;
+namespace Ironpinguin\Bundle\DoctrineFixturesAutonumberResetBundle;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 

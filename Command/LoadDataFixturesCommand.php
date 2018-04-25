@@ -1,59 +1,82 @@
 <?php
 
-namespace Littlejon\DoctrineFixturesAutonumberResetBundle\Command;
+namespace Ironpinguin\Bundle\DoctrineFixturesAutonumberResetBundle\Command;
 
 use Doctrine\Bundle\DoctrineBundle\Command\DoctrineCommand;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Doctrine\Common\DataFixtures\Purger\ORMPurger;
+use Doctrine\ORM\Mapping\DefaultQuoteStrategy;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 
-class LoadDataFixturesCommand extends DoctrineCommand
+class LoadDataFixturesResetCommand extends DoctrineCommand
 {
+    /**
+     * Configure Command
+     */
     protected function configure()
     {
         $this
             ->setName("doctrine:fixtures:resetload")
             ->setDescription("Reset autonumbering with MySQL and then Load Data Fixtures")
-            ->addOption('em', null, InputOption::VALUE_REQUIRED, 'The entity manager to use for this command.');
+            ->addOption('em', null, InputOption::VALUE_REQUIRED, 'The entity manager to use for this command.')
+            ->addOption('shard', null, InputOption::VALUE_REQUIRED, 'The shard connection to use for this command.');
     }
 
+    /**
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     *
+     * @return int|null
+     *
+     * @throws \Exception
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $doctrine = $this->getContainer()->get('doctrine');
-        $em = $doctrine->getManager($input->getOption('em'));
+        $command = $this->getApplication()->find('doctrine:fixtures:load');
 
-        // Get platform parameters
+        $em = $this->getEntityManager($input->getOption('em'), $input->getOption('shard'));
         $platform = $em->getConnection()->getDatabasePlatform();
 
-        $purger = new ORMPurger($em);
-        $purger->setPurgeMode(ORMPurger::PURGE_MODE_DELETE);
-
-        $purger->purge();
-
-        $metadatas = $em->getMetadataFactory()->getAllMetadata();
-        foreach ($metadatas as $metadata) {
-            if (!$metadata->isMappedSuperclass) {
-                $tbl = $metadata->getQuotedTableName($platform);
-
-                $em->getConnection()->executeUpdate("ALTER TABLE " . $tbl . " AUTO_INCREMENT=1;");
+        if ($input->isInteractive()) {
+            /** @var QuestionHelper $questionHelper */
+            $questionHelper = $this->getHelperSet()->get('question');
+            $question = new ConfirmationQuestion(
+                '<question>Careful, database will be purged. Do you want to continue y/N ?</question>',
+                false
+            );
+            if (!$questionHelper->ask($input, $output, $question)) {
+                return 1;
             }
         }
 
-        $command = $this->getApplication()->find('doctrine:fixtures:load');
+        $purger = new ORMPurger($em);
+        $purger->setPurgeMode(ORMPurger::PURGE_MODE_DELETE);
+        $purger->purge();
 
-        // Using the append option as data has already been purged from the database
-        $arguments = array(
+        $allMetadata = $em->getMetadataFactory()->getAllMetadata();
+        $qs = new DefaultQuoteStrategy();
+        foreach ($allMetadata as $metadata) {
+            if (!$metadata->isMappedSuperclass) {
+                $em->getConnection()->executeUpdate("ALTER TABLE {$qs->getTableName($metadata, $platform)} AUTO_INCREMENT=1;");
+            }
+        }
+
+        $arguments = [
             'command' => 'doctrine:fixtures:load',
             '--append'  => true,
-        );
-
+        ];
         if ($input->getOption('em')) {
             $arguments['--em'] = $input->getOption('em');
         }
-
+        if ($input->getOption('shard')) {
+            $arguments['--shard'] = $input->getOption('shard');
+        }
         $inputs = new ArrayInput($arguments);
-        $returnCode = $command->run($inputs, $output);
+
+        return $command->run($inputs, $output);
     }
 }
